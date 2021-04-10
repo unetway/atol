@@ -1,0 +1,28 @@
+{
+  "name": "unetway/atol",
+  "description": "Пакет для работы с Атол Онлайн",
+  "keywords": [
+    "atol",
+    "atol online",
+    "receipt"
+  ],
+  "homepage": "https://github.com/unetway/atol",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Cherepanov Ilya",
+      "email": "support@unetway.com"
+    }
+  ],
+  "require": {
+    "php": "^7.4",
+    "guzzlehttp/guzzle": "^6.3",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Unetway\\Atol\\": "src/"
+    }
+  }
+}
+
