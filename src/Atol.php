@@ -2,36 +2,36 @@
 
 namespace Unetway\Atol;
 
+use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
-use Exception;
 
 class Atol
 {
     /**
      * @var string
      */
-    private string $base_uri = 'https://online.atol.ru';
+    private string $baseUri = 'https://online.atol.ru';
 
     /**
      * @var string
      */
-    private string $test_uri = 'https://testonline.atol.ru';
+    private string $testUri = 'https://testonline.atol.ru';
 
     /**
-     * @var mixed|null
+     * @var string
      */
     private $login;
 
     /**
-     * @var mixed|null
+     * @var string
      */
     private $password;
 
     /**
-     * @var mixed|null
+     * @var string
      */
-    private $group_code;
+    private $groupCode;
 
     /**
      * @var string
@@ -39,34 +39,34 @@ class Atol
     private string $version = 'v4';
 
     /**
-     * @var Client
+     * @var Client $client
      */
     private Client $client;
 
     /**
      * @var string
      */
-    private string $callback_url;
+    private string $callbackUrl;
 
     /**
      * @var string
      */
-    private $company_email;
+    private string $companyEmail;
 
     /**
      * @var string
      */
-    private $sno;
+    private string $sno;
 
     /**
      * @var string
      */
-    private $inn;
+    private string $inn;
 
     /**
      * @var string
      */
-    private $payment_address;
+    private string $paymentAddress;
 
     /**
      * @var int
@@ -81,12 +81,12 @@ class Atol
     /**
      * @var string
      */
-    private string $payment_method = 'full_payment';
+    private string $paymentMethod = 'full_payment';
 
     /**
      * @var string
      */
-    private string $payment_object = 'service';
+    private string $paymentObject = 'service';
 
     /**
      * Atol constructor.
@@ -95,61 +95,27 @@ class Atol
      */
     public function __construct($params)
     {
-        if (empty($params)) {
-            throw new Exception('Config is not defined');
-        }
+        $this->validateParams($params);
 
         if (!empty($params['is_test']) && $params['is_test'] === true) {
-            $this->base_uri = $this->test_uri;
-        }
-
-        if (empty($params['login'])) {
-            throw new Exception('Param login is not defined');
-        }
-
-        if (empty($params['password'])) {
-            throw new Exception('Param password is not defined');
-        }
-
-        if (empty($params['group_code'])) {
-            throw new Exception('Param group_code is not defined');
-        }
-
-        if (empty($params['company_email'])) {
-            throw new Exception('Param company_email is not defined');
-        }
-
-        if (empty($params['sno'])) {
-            throw new Exception('Param sno is not defined');
-        }
-
-        if (empty($params['inn'])) {
-            throw new Exception('Param inn is not defined');
-        }
-
-        if (empty($params['payment_address'])) {
-            throw new Exception('Param payment_address is not defined');
-        }
-
-        if (empty($params['callback_url'])) {
-            throw new Exception('Param callback_url is not defined');
+            $this->baseUri = $this->testUri;
         }
 
         $this->login = $params['login'];
         $this->password = $params['password'];
-        $this->group_code = $params['group_code'];
-        $this->company_email = $params['company_email'];
+        $this->groupCode = $params['group_code'];
+        $this->companyEmail = $params['company_email'];
         $this->sno = $params['sno'];
         $this->inn = $params['inn'];
-        $this->payment_address = $params['payment_address'];
-        $this->callback_url = $params['callback_url'];
+        $this->paymentAddress = $params['payment_address'];
+        $this->callbackUrl = $params['callback_url'];
 
         if (!empty($params['vat'])) {
             $this->vat = $params['vat'];
         }
 
         $this->client = new Client([
-            'base_uri' => $this->base_uri . '/possystem/' . $this->getVersion() . '/',
+            'base_uri' => $this->baseUri . '/possystem/' . $this->getVersion() . '/',
             'headers' => [
                 'Content-Type' => 'application/json; charset=utf-8',
                 'Token' => $this->getToken(),
@@ -158,12 +124,45 @@ class Atol
     }
 
     /**
-     * @return mixed|null
+     * @param array $params
+     * @throws Exception
      */
-    private function getToken()
+    private function validateParams(array $params): void
+    {
+        $requiredParams = [
+            'login',
+            'password',
+            'group_code',
+            'company_email',
+            'sno',
+            'inn',
+            'payment_address',
+            'callback_url',
+        ];
+
+        foreach ($requiredParams as $param) {
+            if (empty($params[$param])) {
+                throw new Exception("Param $param is not defined");
+            }
+        }
+    }
+
+    /**
+     * @return string
+     */
+    private function getVersion(): string
+    {
+        return $this->version;
+    }
+
+    /**
+     * @return string
+     * @throws Exception
+     */
+    private function getToken(): string
     {
         $client = new Client([
-            'base_uri' => $this->base_uri . '/possystem/' . $this->getVersion() . '/',
+            'base_uri' => $this->baseUri . '/possystem/' . $this->getVersion() . '/',
         ]);
 
         try {
@@ -174,41 +173,25 @@ class Atol
                 ]
             ]);
 
-            if ($response->getStatusCode() === 200) {
-                $content = $response->getBody()->getContents();
-                $res = json_decode($content, true);
+            $content = $response->getBody()->getContents();
+            $response = json_decode($content, true);
 
-                if (is_null($res['error'])) {
-                    return $res['token'];
-                }
-            }
+            return $response['token'];
+
         } catch (ClientException $exception) {
+            throw new Exception($exception);
         }
-
-        return null;
     }
 
     /**
      * @param string $name
      * @param float $price
      * @param string $email
-     * @return mixed
+     * @return array
      * @throws Exception
      */
-    public function receipt(string $name, float $price, string $email)
+    public function receipt(string $name, float $price, string $email): array
     {
-        if (empty($name)) {
-            throw new Exception('Param name is not defined');
-        }
-
-        if (empty($price)) {
-            throw new Exception('Param price is not defined');
-        }
-
-        if (empty($email)) {
-            throw new Exception('Param email is not defined');
-        }
-
         try {
             $url = $this->getGroupCode() . '/sell';
 
@@ -216,45 +199,29 @@ class Atol
                 'json' => $this->getParams($name, $price, $email)
             ]);
 
-            if ($response->getStatusCode() === 200) {
-                $content = $response->getBody()->getContents();
-                return json_decode($content, true);
-            }
-        } catch (ClientException $exception) {
-            $response = $exception->getResponse();
             $content = $response->getBody()->getContents();
+
             return json_decode($content, true);
+        } catch (ClientException $exception) {
+            throw new Exception($exception);
         }
     }
 
     /**
-     * @param string $uuid
-     * @return mixed
+     * @return string
      */
-    public function report(string $uuid)
+    private function getGroupCode(): string
     {
-        try {
-            $url = $this->getGroupCode() . '/report/' . $uuid;
-            $response = $this->client->get($url);
-
-            if ($response->getStatusCode() === 200) {
-                $content = $response->getBody()->getContents();
-                return json_decode($content, true);
-            }
-        } catch (ClientException $exception) {
-            $response = $exception->getResponse();
-            $content = $response->getBody()->getContents();
-            return json_decode($content, true);
-        }
+        return $this->groupCode;
     }
 
     /**
-     * @param $name
-     * @param $price
-     * @param $email
+     * @param string $name
+     * @param float $price
+     * @param string $email
      * @return array
      */
-    private function getParams($name, $price, $email): array
+    private function getParams(string $name, float $price, string $email): array
     {
         return [
             'external_id' => $this->getUuid(),
@@ -305,30 +272,6 @@ class Atol
     /**
      * @return string
      */
-    private function getVersion(): string
-    {
-        return $this->version;
-    }
-
-    /**
-     * @return mixed|null
-     */
-    private function getGroupCode()
-    {
-        return $this->group_code;
-    }
-
-    /**
-     * @return string
-     */
-    private function getCallbackUrl(): string
-    {
-        return $this->callback_url;
-    }
-
-    /**
-     * @return string
-     */
     private function getUuid(): string
     {
         return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
@@ -349,15 +292,15 @@ class Atol
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     private function getCompanyEmail(): string
     {
-        return $this->company_email;
+        return $this->companyEmail;
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     private function getSno(): string
     {
@@ -365,7 +308,7 @@ class Atol
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     private function getInn(): string
     {
@@ -373,15 +316,15 @@ class Atol
     }
 
     /**
-     * @return mixed
+     * @return string
      */
     private function getPaymentAddress(): string
     {
-        return $this->payment_address;
+        return $this->paymentAddress;
     }
 
     /**
-     * @return mixed
+     * @return int
      */
     private function getQuantity(): int
     {
@@ -389,7 +332,23 @@ class Atol
     }
 
     /**
-     * @return mixed
+     * @return string
+     */
+    private function getPaymentMethod(): string
+    {
+        return $this->paymentMethod;
+    }
+
+    /**
+     * @return string
+     */
+    private function getPaymentObject(): string
+    {
+        return $this->paymentObject;
+    }
+
+    /**
+     * @return string
      */
     private function getVat(): string
     {
@@ -399,17 +358,28 @@ class Atol
     /**
      * @return string
      */
-    private function getPaymentObject(): string
+    private function getCallbackUrl(): string
     {
-        return $this->payment_object;
+        return $this->callbackUrl;
     }
 
     /**
-     * @return string
+     * @param string $uuid
+     * @return array
+     * @throws Exception
      */
-    private function getPaymentMethod(): string
+    public function report(string $uuid): array
     {
-        return $this->payment_method;
+        try {
+            $url = $this->getGroupCode() . '/report/' . $uuid;
+            $response = $this->client->get($url);
+
+            $content = $response->getBody()->getContents();
+
+            return json_decode($content, true);
+        } catch (ClientException $exception) {
+            throw new Exception($exception);
+        }
     }
 
 }
